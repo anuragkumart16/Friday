@@ -1,176 +1,171 @@
 import { Client, LocalAuth } from "whatsapp-web.js";
 import qrcode from "qrcode-terminal";
 import getReply from "../service/llm.service";
-
-export const whatsappClient = new Client({
-    authStrategy: new LocalAuth(),
-    puppeteer: {
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    },
-});
+import fs from "fs";
+import path from "path";
 
 const HUMAN_DELAY_MS = 15000; // 15 seconds
-
 const assistantIntroducedMap = new Map<string, boolean>();
 
-whatsappClient.on("qr", (qr) => {
-    qrcode.generate(qr, { small: true });
-    console.log("Scan the QR code with WhatsApp");
-});
+export interface WhatsAppSession {
+    id: string;
+    client: Client;
+    status: 'INITIALIZING' | 'QR_READY' | 'READY' | 'AUTHENTICATED' | 'DISCONNECTED';
+    qrCode?: string;
+}
 
-whatsappClient.on("ready", () => {
-    console.log("WhatsApp Client is ready!");
-});
+export const sessions: Record<string, WhatsAppSession> = {};
 
-whatsappClient.on("message", async (msg) => {
+export const createWhatsAppClient = (id: string = "default") => {
+    if (sessions[id]) {
+        return sessions[id];
+    }
 
-    try {
+    console.log(`Creating WhatsApp client with ID: ${id}`);
 
-        // Ignore your own messages
-        if (msg.fromMe) return;
+    let localAuthConfig = {};
+    if (id !== "default") {
+        localAuthConfig = { clientId: id };
+    }
 
-        // Ignore status updates
-        if (msg.isStatus || msg.from === "status@broadcast") return;
+    const client = new Client({
+        authStrategy: new LocalAuth(localAuthConfig),
+        puppeteer: {
+            args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        },
+    });
 
-        // Ignore old messages (older than 1 day)
-        if (Date.now() - msg.timestamp * 1000 > 24 * 60 * 60 * 1000) return;
+    sessions[id] = {
+        id,
+        client,
+        status: 'INITIALIZING',
+    };
 
-        const chat = await msg.getChat();
+    client.on("qr", (qr) => {
+        qrcode.generate(qr, { small: true });
+        console.log(`Scan the QR code with WhatsApp for ID: ${id}`);
+        sessions[id].status = 'QR_READY';
+        sessions[id].qrCode = qr;
+    });
 
-        // Ignore muted chats
-        if (chat.isMuted) {
-            console.log(`Muted chat skipped: ${chat.name}`);
-            return;
-        }
+    client.on("ready", () => {
+        console.log(`WhatsApp Client ${id} is ready!`);
+        sessions[id].status = 'READY';
+        sessions[id].qrCode = undefined;
+    });
 
-        // Ignore archived chats
-        if (chat.archived) {
-            console.log(`Archived chat skipped: ${chat.name}`);
-            return;
-        }
+    client.on("authenticated", () => {
+        console.log(`WhatsApp Client ${id} authenticated!`);
+        sessions[id].status = 'AUTHENTICATED';
+        sessions[id].qrCode = undefined;
+    });
 
-        // Ignore group chats
-        if (chat.isGroup) {
-            console.log(`Group message noted (${chat.name}): ${msg.body}`);
-            return;
-        }
+    client.on("disconnected", (reason) => {
+        console.log(`WhatsApp Client ${id} disconnected`, reason);
+        sessions[id].status = 'DISCONNECTED';
+        sessions[id].qrCode = undefined;
+    });
 
-        const contact = await msg.getContact();
-        const senderName = contact.name || contact.pushname || msg.from;
-        const senderId = msg.from;
+    client.on("message", async (msg) => {
+        try {
+            if (msg.fromMe) return;
+            if (msg.isStatus || msg.from === "status@broadcast") return;
+            if (Date.now() - msg.timestamp * 1000 > 24 * 60 * 60 * 1000) return;
 
-        const assistantIntroduced = assistantIntroducedMap.get(senderId) || false;
+            const chat = await msg.getChat();
+            if (chat.isMuted) return;
+            if (chat.archived) return;
+            if (chat.isGroup) return;
 
-        const messageTime = new Date(msg.timestamp * 1000).toLocaleString();
+            const contact = await msg.getContact();
+            const senderName = contact.name || contact.pushname || msg.from;
+            const senderId = msg.from;
 
-        let context = "This is a new standalone message.";
+            const assistantIntroduced = assistantIntroducedMap.get(senderId) || false;
+            const messageTime = new Date(msg.timestamp * 1000).toLocaleString();
 
-        if (msg.hasQuotedMsg) {
-
-            const quotedMsg = await msg.getQuotedMessage();
-
-            if (quotedMsg.fromMe) {
-
-                const timeDiffMins =
-                    (msg.timestamp - quotedMsg.timestamp) / 60;
-
-                context = `They are replying to your previous message ("${quotedMsg.body}") sent ${timeDiffMins.toFixed(
-                    1
-                )} minutes ago.`;
-
-            } else {
-
-                context = `They are replying to another message ("${quotedMsg.body}").`;
-
+            let context = "This is a new standalone message.";
+            if (msg.hasQuotedMsg) {
+                const quotedMsg = await msg.getQuotedMessage();
+                if (quotedMsg.fromMe) {
+                    const timeDiffMins = (msg.timestamp - quotedMsg.timestamp) / 60;
+                    context = `They are replying to your previous message ("${quotedMsg.body}") sent ${timeDiffMins.toFixed(1)} minutes ago.`;
+                } else {
+                    context = `They are replying to another message ("${quotedMsg.body}").`;
+                }
             }
-        }
 
-        // Fetch chat history
-        const recentMessages = await chat.fetchMessages({ limit: 20 });
+            const recentMessages = await chat.fetchMessages({ limit: 20 });
+            const chatHistory = recentMessages
+                .map((m) => {
+                    const time = new Date(m.timestamp * 1000).toLocaleString();
+                    const sender = m.fromMe ? "Anurag" : senderName;
+                    return `[${time}] ${sender}: ${m.body}`;
+                })
+                .join("\n");
 
-        const chatHistory = recentMessages
-            .map((m) => {
-                const time = new Date(m.timestamp * 1000).toLocaleString();
-                const sender = m.fromMe ? "Anurag" : senderName;
-
-                return `[${time}] ${sender}: ${m.body}`;
-            })
-            .join("\n");
-
-        console.log(`
+            console.log(`
 -----------------------------
-NEW MESSAGE RECEIVED
+NEW MESSAGE RECEIVED [${id}]
 Sender: ${senderName}
 Message: ${msg.body}
-Time: ${messageTime}
 -----------------------------
 `);
 
-        const text = await getReply(
-            msg.body,
-            senderName,
-            messageTime,
-            context,
-            chatHistory,
-            assistantIntroduced
-        );
-
-        if (!text) return;
-
-        const cleanText = text.trim();
-
-        if (cleanText === "NO_REPLY") {
-
-            console.log(`LLM decided not to reply to ${senderName}`);
-            return;
-
-        }
-
-        // URGENT detection
-        if (cleanText.startsWith("URGENT_ALERT")) {
-
-            console.log("🚨 URGENT MESSAGE DETECTED");
-
-            const reply = cleanText.replace("URGENT_ALERT:", "").trim();
-
-            await new Promise((res) =>
-                setTimeout(res, HUMAN_DELAY_MS)
+            const text = await getReply(
+                msg.body,
+                senderName,
+                messageTime,
+                context,
+                chatHistory,
+                assistantIntroduced
             );
 
-            await msg.reply(reply);
+            if (!text) return;
+            const cleanText = text.trim();
 
+            if (cleanText === "NO_REPLY") return;
+
+            if (cleanText.startsWith("URGENT_ALERT")) {
+                const reply = cleanText.replace("URGENT_ALERT:", "").trim();
+                await new Promise((res) => setTimeout(res, HUMAN_DELAY_MS));
+                await msg.reply(reply);
+                assistantIntroducedMap.set(senderId, true);
+                return;
+            }
+
+            await new Promise((res) => setTimeout(res, HUMAN_DELAY_MS));
+            await msg.reply(cleanText);
             assistantIntroducedMap.set(senderId, true);
 
-            console.log(`Urgent reply sent to ${senderName}`);
-
-            return;
+        } catch (error) {
+            console.error(`Error handling message for ${id}:`, error);
         }
-
-        // Normal reply
-        await new Promise((res) =>
-            setTimeout(res, HUMAN_DELAY_MS)
-        );
-
-        await msg.reply(cleanText);
-
-        assistantIntroducedMap.set(senderId, true);
-
-        console.log(`Reply sent to ${senderName}: ${cleanText}`);
-
-    } catch (error) {
-
-        console.error("Error handling message:", error);
-
-    }
-
-});
-
-export const initializeWhatsAppClient = () => {
-
-    whatsappClient.initialize().catch((err) => {
-
-        console.error("Error initializing WhatsApp client:", err);
-
     });
 
+    client.initialize().catch((err) => {
+        console.error(`Error initializing WhatsApp client ${id}:`, err);
+    });
+
+    return sessions[id];
+};
+
+export const initializeWhatsAppClient = () => {
+    // Scan existing .wwebjs_auth directories on startup
+    try {
+        const authParentDir = path.resolve(process.cwd(), '.wwebjs_auth');
+        if (fs.existsSync(authParentDir)) {
+            const items = fs.readdirSync(authParentDir);
+            for (const item of items) {
+                if (item.startsWith('session-')) {
+                    const id = item.replace('session-', '');
+                    createWhatsAppClient(id);
+                } else if (item === 'session') {
+                    createWhatsAppClient('default');
+                }
+            }
+        }
+    } catch (err) {
+        console.error("Error reading auth directory:", err);
+    }
 };
