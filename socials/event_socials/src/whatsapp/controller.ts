@@ -38,7 +38,7 @@ export const createClient = async (req: Request, res: Response) => {
 };
 
 export const getClientStatus = async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const session = sessions[id];
 
     if (!session) {
@@ -53,7 +53,7 @@ export const getClientStatus = async (req: Request, res: Response) => {
 };
 
 export const deleteClient = async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const session = sessions[id];
 
     if (!session) {

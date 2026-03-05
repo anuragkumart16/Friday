@@ -1,6 +1,7 @@
 import { requireAuth } from '../../../utils/auth';
 import Navbar from '../../../components/Navbar';
 import Link from 'next/link';
+import WhatsAppConnectionsManager from '../../../components/WhatsAppConnectionsManager';
 
 export default async function WhatsAppSettingsPage() {
     await requireAuth();
@@ -36,12 +37,7 @@ export default async function WhatsAppSettingsPage() {
                     </div>
 
                     <div className="border-t border-gray-200 dark:border-gray-800 pt-8">
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Configuration</h2>
-                        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
-                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-                                Settings forms and connection QR code options will be added here!
-                            </p>
-                        </div>
+                        <WhatsAppConnectionsManager />
                     </div>
                 </div>
             </main>
