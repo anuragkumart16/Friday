@@ -33,6 +33,7 @@ model TodoCollection {
   description String?
   deadline    DateTime?
   status      TodoStatus @default(PENDING)
+  comment     String?
   hidden      Boolean    @default(false)
   todos       Todo[]
   createdAt   DateTime   @default(now())

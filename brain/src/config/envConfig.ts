@@ -13,6 +13,8 @@
 export const appConfig = {
     port: process.env.PORT || 5001,
     nodeEnv: process.env.NODE_ENV || "dev",
-    microserviceName: process.env.MICROSERVICE_NAME ? process.env.MICROSERVICE_NAME + "microservice" : "server"
+    microserviceName: process.env.MICROSERVICE_NAME ? process.env.MICROSERVICE_NAME + "microservice" : "server",
+    corsOrigin: process.env.CORS_ORIGIN || "http://localhost:3000",
+    corsCredentials: process.env.CORS_CREDENTIALS === "true",
 }
 

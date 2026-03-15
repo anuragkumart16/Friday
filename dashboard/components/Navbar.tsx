@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 
 export default function Navbar() {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const pathname = usePathname();
 
     return (
@@ -12,19 +13,26 @@ export default function Navbar() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between h-16">
                     <div className="flex items-center">
-                        <Link href="/" className="flex-shrink-0 flex items-center group">
+                        <Link href="/" className="shrink-0 flex items-center group">
                             <div className="w-8 h-8 rounded-lg bg-linear-to-tr from-indigo-600 to-purple-600 flex items-center justify-center shadow-md mr-3 group-hover:shadow-indigo-500/30 transition-shadow">
                                 <span className="text-white font-bold text-lg leading-none">F</span>
                             </div>
                             <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Friday</span>
                         </Link>
                     </div>
-                    <div className="flex items-center space-x-4">
+                    <div className="hidden md:flex items-center space-x-4">
                         <Link
                             href="/"
                             className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${pathname === '/' ? 'bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
                         >
                             Dashboard
+                        </Link>
+
+                        <Link
+                            href="/productivity"
+                            className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${pathname.startsWith('/productivity') ? 'bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
+                        >
+                            Productivity
                         </Link>
 
                         <div className="relative">
@@ -71,8 +79,52 @@ export default function Navbar() {
                             B
                         </div>
                     </div>
+
+                    {/* Mobile hamburger button */}
+                    <div className="flex items-center md:hidden">
+                        <button
+                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                            className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none"
+                            aria-label="Toggle menu"
+                        >
+                            {isMobileMenuOpen ? (
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            ) : (
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                            )}
+                        </button>
+                    </div>
                 </div>
             </div>
+
+            {/* Mobile menu panel */}
+            {isMobileMenuOpen && (
+                <div className="md:hidden border-t border-gray-200 dark:border-gray-800">
+                    <div className="px-4 py-3 space-y-1">
+                        <Link
+                            href="/"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className={`block px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${pathname === '/' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
+                        >
+                            Dashboard
+                        </Link>
+                        <Link
+                            href="/productivity"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className={`block px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${pathname.startsWith('/productivity') ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
+                        >
+                            Productivity
+                        </Link>
+                        <Link
+                            href="/socials"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className={`block px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${pathname === '/socials' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
+                        >
+                            Socials
+                        </Link>
+                    </div>
+                </div>
+            )}
         </nav>
     );
 }

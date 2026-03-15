@@ -15,6 +15,8 @@ import {
     hideTodo,
     batchTodoAction,
     createCollectionWithTodos,
+    searchCollections,
+    searchTodos,
 } from "./controller";
 
 /**
@@ -28,6 +30,9 @@ const router = Router();
 
 // ─── Collection Routes ───────────────────────
 
+// Search (must be before :id routes to avoid conflict)
+router.route("/collections/search").get(searchCollections);
+
 // Batch operations (must be before :id routes to avoid conflict)
 router.route("/collections/batch").post(batchCollectionAction);
 
@@ -40,6 +45,9 @@ router.route("/collections/:id/hide").patch(hideCollection);
 
 
 // ─── Todo Routes ─────────────────────────────
+
+// Search (must be before :id routes to avoid conflict)
+router.route("/todos/search").get(searchTodos);
 
 // Batch operations (must be before :id routes to avoid conflict)
 router.route("/todos/batch").post(batchTodoAction);

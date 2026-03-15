@@ -10,11 +10,11 @@ import { logger } from "../../logger/logger";
 
 /**
  * Create a new TodoCollection.
- * Body: { name, description?, deadline?, status? }
+ * Body: { name, description?, deadline?, status?, comment? }
  */
 const createCollection = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { name, description, deadline, status } = req.body;
+        const { name, description, deadline, status, comment } = req.body;
 
         if (!name) {
             return ApiResponse(res, 400, "Collection name is required");
@@ -26,6 +26,7 @@ const createCollection = async (req: Request, res: Response, next: NextFunction)
                 ...(description && { description }),
                 ...(deadline && { deadline: new Date(deadline) }),
                 ...(status && { status }),
+                ...(comment && { comment }),
             },
         });
 
@@ -92,12 +93,12 @@ const getCollectionById = async (req: Request, res: Response, next: NextFunction
 /**
  * Update a collection.
  * Params: :id
- * Body: { name?, description?, deadline?, status? }
+ * Body: { name?, description?, deadline?, status?, comment? }
  */
 const updateCollection = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const id = req.params.id as string;
-        const { name, description, deadline, status } = req.body;
+        const { name, description, deadline, status, comment } = req.body;
 
         const collection = await prisma.todoCollection.update({
             where: { id },
@@ -106,6 +107,7 @@ const updateCollection = async (req: Request, res: Response, next: NextFunction)
                 ...(description !== undefined && { description }),
                 ...(deadline !== undefined && { deadline: deadline ? new Date(deadline) : null }),
                 ...(status !== undefined && { status }),
+                ...(comment !== undefined && { comment }),
             },
         });
 
@@ -465,7 +467,7 @@ const batchTodoAction = async (req: Request, res: Response, next: NextFunction) 
  */
 const createCollectionWithTodos = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { name, description, deadline, status, todos } = req.body;
+        const { name, description, deadline, status, comment, todos } = req.body;
 
         if (!name) {
             return ApiResponse(res, 400, "Collection name is required");
@@ -488,6 +490,7 @@ const createCollectionWithTodos = async (req: Request, res: Response, next: Next
                 ...(description && { description }),
                 ...(deadline && { deadline: new Date(deadline) }),
                 ...(status && { status }),
+                ...(comment && { comment }),
                 todos: {
                     create: todos.map((todo: any) => ({
                         heading: todo.heading,
@@ -508,6 +511,106 @@ const createCollectionWithTodos = async (req: Request, res: Response, next: Next
         });
 
         return ApiResponse(res, 201, "Collection with todos created successfully", collection);
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+// ─────────────────────────────────────────────
+//  SEARCH & FILTER
+// ─────────────────────────────────────────────
+
+/**
+ * Search and filter collections.
+ * Query: ?q=text&status=PENDING&createdFrom=2026-01-01&createdTo=2026-12-31&includeHidden=true
+ */
+const searchCollections = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const q = (req.query.q as string || "").trim();
+        const status = req.query.status as string | undefined;
+        const createdFrom = req.query.createdFrom as string | undefined;
+        const createdTo = req.query.createdTo as string | undefined;
+        const includeHidden = req.query.includeHidden === "true";
+
+        const where: any = {};
+
+        // Text search across name, description, comment
+        if (q) {
+            where.OR = [
+                { name: { contains: q, mode: "insensitive" } },
+                { description: { contains: q, mode: "insensitive" } },
+                { comment: { contains: q, mode: "insensitive" } },
+            ];
+        }
+
+        if (status) where.status = status;
+        if (!includeHidden) where.hidden = false;
+
+        // Date range filter on createdAt
+        if (createdFrom || createdTo) {
+            where.createdAt = {};
+            if (createdFrom) where.createdAt.gte = new Date(createdFrom);
+            if (createdTo) where.createdAt.lte = new Date(createdTo + "T23:59:59.999Z");
+        }
+
+        const collections = await prisma.todoCollection.findMany({
+            where,
+            include: { todos: true },
+            orderBy: { createdAt: "desc" },
+        });
+
+        return ApiResponse(res, 200, "Search results", collections);
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+/**
+ * Search and filter todos.
+ * Query: ?q=text&status=PENDING&priority=HIGH&collectionId=xxx&createdFrom=2026-01-01&createdTo=2026-12-31&includeHidden=true
+ */
+const searchTodos = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const q = (req.query.q as string || "").trim();
+        const status = req.query.status as string | undefined;
+        const priority = req.query.priority as string | undefined;
+        const collectionId = req.query.collectionId as string | undefined;
+        const createdFrom = req.query.createdFrom as string | undefined;
+        const createdTo = req.query.createdTo as string | undefined;
+        const includeHidden = req.query.includeHidden === "true";
+
+        const where: any = {};
+
+        // Text search across heading, description, comment
+        if (q) {
+            where.OR = [
+                { heading: { contains: q, mode: "insensitive" } },
+                { description: { contains: q, mode: "insensitive" } },
+                { comment: { contains: q, mode: "insensitive" } },
+            ];
+        }
+
+        if (status) where.status = status;
+        if (priority) where.priority = priority;
+        if (collectionId) where.collectionId = collectionId;
+        if (!includeHidden) where.hidden = false;
+
+        // Date range filter on createdAt
+        if (createdFrom || createdTo) {
+            where.createdAt = {};
+            if (createdFrom) where.createdAt.gte = new Date(createdFrom);
+            if (createdTo) where.createdAt.lte = new Date(createdTo + "T23:59:59.999Z");
+        }
+
+        const todos = await prisma.todo.findMany({
+            where,
+            include: { collection: true },
+            orderBy: { createdAt: "desc" },
+        });
+
+        return ApiResponse(res, 200, "Search results", todos);
     } catch (error) {
         next(error);
     }
@@ -535,4 +638,8 @@ export {
 
     // Combined
     createCollectionWithTodos,
+
+    // Search & Filter
+    searchCollections,
+    searchTodos,
 };

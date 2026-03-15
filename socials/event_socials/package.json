@@ -12,6 +12,7 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/node": "^25.0.10",
     "@types/qrcode-terminal": "^0.12.2",
     "jest": "^30.2.0",
@@ -29,6 +30,7 @@
     "@types/morgan": "^1.9.10",
     "@types/supertest": "^6.0.3",
     "ai": "^6.0.111",
+    "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "morgan": "^1.10.1",

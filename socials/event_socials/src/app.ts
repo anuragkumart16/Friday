@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 import express from "express";
+import cors from "cors";
 import { errorHandler } from "./middlewares/error.middleware";
 import { httpLogger } from "./middlewares/httpLogger.middleware";
 
@@ -12,10 +13,14 @@ import { httpLogger } from "./middlewares/httpLogger.middleware";
 const app = express();
 
 // app-level middleware config
+app.use(cors({
+    origin: "*", // Or specific next.js origin
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+}));
 app.use(httpLogger);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 
 // router imports
 import whatsappRouter from "./whatsapp/route"

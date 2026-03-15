@@ -8,8 +8,8 @@ export default async function DashboardPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 font-sans">
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-sm border border-gray-200 dark:border-gray-800 p-8">
-          <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-200 dark:border-gray-800 p-4 sm:p-6 lg:p-8">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">
             Hey Boss 👋
           </h1>
           <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">
