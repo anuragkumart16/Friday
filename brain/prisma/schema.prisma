@@ -12,3 +12,44 @@ datasource db {
   provider = "mongodb"
   url      = env("DATABASE_URL")
 }
+
+enum TodoStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PriorityLevel {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model TodoCollection {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  deadline    DateTime?
+  status      TodoStatus @default(PENDING)
+  hidden      Boolean    @default(false)
+  todos       Todo[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Todo {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  heading      String
+  description  String?
+  deadline     DateTime?
+  status       TodoStatus    @default(PENDING)
+  priority     PriorityLevel @default(MEDIUM)
+  comment      String?
+  hidden       Boolean       @default(false)
+  collection   TodoCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  collectionId String        @db.ObjectId
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}

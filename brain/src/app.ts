@@ -19,9 +19,11 @@ app.use(express.urlencoded({ extended: true }));
 
 // router imports
 import healthCheckRouter from "./routes/healthcheck.routes"
+import todoRouter from "./productivity/todo/router"
 
 // url mapping
 app.use("/healthcheck", healthCheckRouter)
+app.use("/api/productivity/todo", todoRouter)
 
 
 // global error handler
